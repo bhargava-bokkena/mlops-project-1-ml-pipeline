@@ -156,16 +156,16 @@ flowchart LR
     subgraph Local_Training
         Cfg[configs/config.yaml] --> Train[src.ml_pipeline.train]
         Train --> Model[models/model.joblib]
-        Train --> Logs[logs/training.log<br/>logs/metrics.json]
+        Train --> Logs["logs/training.log\nlogs/metrics.json"]
         Train --> MLflow[MLflow tracking (mlruns/)]
     end
 
     Model --> API[src.api.app (FastAPI)]
-    API --> Docker[Docker image<br/>mlops-project-api]
+    API --> Docker[Docker image (mlops-project-api)]
 
     Docker --> ECR[(Amazon ECR)]
     ECR --> ECS[ECS Fargate Service]
-    ECS --> User[Public client<br/>(/health, /predict)]
+    ECS --> User[Public client (/health, /predict)]
 ```
 
 ---
