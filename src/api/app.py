@@ -20,15 +20,26 @@ class PredictResponse(BaseModel):
     prediction: int
 
 
-def load_model():
-    if not MODEL_PATH.exists():
-        raise FileNotFoundError(f"Model file not found at {MODEL_PATH.resolve()}")
-    model = joblib.load(MODEL_PATH)
-    return model
+_model = None  # cache for the loaded model
 
 
-# Load model once at startup
-model = load_model()
+def load_model(model_path: Path = MODEL_PATH):
+    """
+    Load the trained ML pipeline from disk.
+    """
+    if not model_path.exists():
+        raise FileNotFoundError(f"Model file not found at {model_path.resolve()}")
+    return joblib.load(model_path)
+
+
+def get_model():
+    """
+    Lazy-load the model the first time it's needed, then cache it.
+    """
+    global _model
+    if _model is None:
+        _model = load_model()
+    return _model
 
 
 @app.get("/health")
@@ -42,5 +53,6 @@ def predict(request: PredictRequest):
     Accepts a JSON body with a 'features' list and returns the prediction.
     """
     features = np.array(request.features).reshape(1, -1)
+    model = get_model()
     pred = model.predict(features)[0]
     return PredictResponse(prediction=int(pred))
