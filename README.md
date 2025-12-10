@@ -154,19 +154,30 @@ This project follows a clean MLOps architecture with separate components for:
 ```mermaid
 flowchart LR
     subgraph Local_Training
-        Cfg[configs/config.yaml] --> Train[src.ml_pipeline.train]
-        Train --> Model[models/model.joblib]
-        Train --> Logs["logs/training.log\nlogs/metrics.json"]
-        Train --> MLflow[MLflow tracking (mlruns/)]
+        Cfg[configs/config.yaml]
+        Train[src.ml_pipeline.train]
+        Model[model artifact]
+        Logs[logs and metrics]
+        Mlflow[MLflow tracking]
+        Cfg --> Train
+        Train --> Model
+        Train --> Logs
+        Train --> Mlflow
     end
 
-    Model --> API[src.api.app (FastAPI)]
-    API --> Docker[Docker image (mlops-project-api)]
+    API[FastAPI app]
+    Docker[Docker image]
+    ECR[Amazon ECR]
+    ECS[ECS Fargate service]
+    User[Client calling /health and /predict]
 
-    Docker --> ECR[(Amazon ECR)]
-    ECR --> ECS[ECS Fargate Service]
-    ECS --> User[Public client (/health, /predict)]
+    Model --> API
+    API --> Docker
+    Docker --> ECR
+    ECR --> ECS
+    ECS --> User
 ```
+
 
 ---
 
