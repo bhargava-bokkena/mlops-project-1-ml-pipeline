@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual env
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data & models (often large; keep raw public data separate if needed)
+data/raw/
+data/processed/
+models/
+logs/
+
+# OS / editor
+.DS_Store
+.vscode/

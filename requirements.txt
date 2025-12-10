@@ -1,0 +1,10 @@
+numpy
+pandas
+scikit-learn
+jupyter
+ipykernel
+python-dotenv
+pyyaml
+joblib
+fastapi
+uvicorn[standard]

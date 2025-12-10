@@ -1,36 +1,34 @@
-# MLOps Project 1 – End-to-End ML Pipeline
+## How to run this project
 
-This project is part of my **DevOps → MLOps / AI Infrastructure** transition training.
+### 1. Clone the repo & set up environment
 
-The goal of this project is to build a **production-style ML pipeline**, including:
+```bash
+git clone https://github.com/<YOUR_USERNAME>/mlops-project-1-ml-pipeline.git
+cd mlops-project-1-ml-pipeline
 
-### 🔹 What This Project Will Include
-- Data loading & preprocessing  
-- Model training in Python  
-- Experiment tracking using **MLflow**  
-- Model packaging using **FastAPI**  
-- Containerization with **Docker**  
-- Deployment to **AWS**  
-- Basic monitoring & logging  
+python3 -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\Activate.ps1
 
-### 🔹 What I Will Learn
-- How real ML systems are built and deployed  
-- How to track experiments and model versions  
-- How to package ML models into APIs  
-- How to deploy ML services with cloud infrastructure  
-- How to monitor ML models in production  
+pip install -r requirements.txt
 
-### 📚 Current Status
-**Planning stage — training in progress.**  
-Implementation will begin during **Week 1** of the Ultra-Fast MLOps Training Plan.
+2. Train the model
+python -m src.ml_pipeline.train
 
-### 🔧 Tech Stack (Planned)
-- **Python**
-- **MLflow**
-- **FastAPI**
-- **Docker**
-- **AWS (ECS/EKS/Lambda)**
-- **GitHub Actions (CI/CD)**
+Run inference from the script
+python -m src.ml_pipeline.inference
+
+Start the FastAPI server
+uvicorn src.api.app:app --reload
+
+Health check:
+GET http://127.0.0.1:8000/health
+
+Make a prediction (example):
+curl -X POST "http://127.0.0.1:8000/predict" \
+  -H "Content-Type: application/json" \
+  -d '{"features":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}'
+
+
 
 ---
 

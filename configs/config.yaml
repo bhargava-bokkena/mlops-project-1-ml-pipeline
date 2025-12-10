@@ -1,0 +1,10 @@
+project_name: "week1_ml_pipeline"
+experiment_name: "dev_run_01"
+
+data:
+  test_size: 0.2
+  random_state: 42
+
+model:
+  max_iter: 1000
+
