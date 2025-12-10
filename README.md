@@ -1,57 +1,285 @@
-## How to run this project
+# MLOps Project 1 — End-to-End ML Pipeline + FastAPI + Docker + CI + AWS Deployment
 
-1️⃣ Clone the repo & set up environment
-git clone https://github.com/<YOUR_USERNAME>/mlops-project-1-ml-pipeline.git
-cd mlops-project-1-ml-pipeline
+This project implements a complete **end-to-end MLOps workflow**, taking a machine learning model from:
 
+**Training → Experiment Tracking → Model Artifact → API Serving → Docker → CI/CD → Cloud Deployment (AWS ECS Fargate)**
+
+It is designed to imitate how modern production ML systems are built.
+
+---
+
+# Features
+
+This project includes:
+
+- **Modular ML training pipeline** (scikit-learn Pipelines)
+- **Config-driven design** using YAML
+- **Experiment tracking with MLflow**
+- **Logging + metrics artifacts**
+- **FastAPI-based model serving**
+- **Dockerized inference service**
+- **Pytest test suite**
+- **GitHub Actions CI pipeline**
+- **AWS Deployment using ECR + ECS Fargate**
+
+---
+
+# How to Run Locally
+
+## Create virtual environment & install dependencies
+
+```bash
 python3 -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\Activate.ps1
-
+source .venv/bin/activate
 pip install -r requirements.txt
+```
 
-2️⃣ Train the model
+---
+
+## Train the model
+
+```bash
 python -m src.ml_pipeline.train
+```
 
+This generates:
 
-This will:
+- `models/model.joblib`  
+- `logs/training.log`  
+- `logs/metrics.json`  
+- MLflow logs under `mlruns/`
 
-load dataset
+---
 
-train the ML pipeline
+## Run MLflow UI
 
-save logs → logs/training.log
+```bash
+mlflow ui
+```
 
-save metrics → logs/metrics.json
+Open: http://127.0.0.1:5000
 
-save model → models/model.joblib
+---
 
-3️⃣ Run inference from the script
-python -m src.ml_pipeline.inference
+## Run FastAPI server locally
 
-4️⃣ Start the FastAPI server
-uvicorn src.api.app:app --reload
+```bash
+uvicorn src.api.app:app --reload --port 8000
+```
 
-5️⃣ Health check
+Test endpoints:
 
-Open in your browser:
+```bash
+curl http://127.0.0.1:8000/health
+```
 
-http://127.0.0.1:8000/health
-
-6️⃣ Make a prediction (example with 30 zeros)
+```bash
 curl -X POST "http://127.0.0.1:8000/predict" \
   -H "Content-Type: application/json" \
   -d '{"features":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}'
+```
 
-  This project is a modular ML pipeline with:
+---
 
-configuration-driven training
+# Run with Docker
 
-metrics + logs output
+## Build image
 
-saved model artifacts
+```bash
+docker build -t mlops-project-api .
+```
 
-script-based inference
+## Run container
 
-FastAPI inference service
+```bash
+docker run -p 8000:8000 mlops-project-api
+```
 
-The repository will be updated as the project develops.
+## Test
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+---
+
+# Architecture Overview
+
+This project follows a clean MLOps architecture with separate components for:
+
+- **Training**
+- **Experiment tracking**
+- **Inference API**
+- **Docker packaging**
+- **CI/CD**
+- **Cloud deployment**
+
+---
+
+## Components
+
+### **Training**
+- Modular ML pipeline in `src/ml_pipeline/`
+- Configuration via `configs/config.yaml`
+- Outputs: `models/model.joblib`, `logs/metrics.json`, `logs/training.log`
+
+### **Experiment Tracking**
+- MLflow local tracking under `mlruns/`
+
+### **Serving**
+- FastAPI app in `src/api/app.py`
+- Lazy model loading for production safety
+- Endpoints:
+  - `/health`
+  - `/predict`
+
+### **Containerization**
+- Dockerfile builds inference-ready API container
+
+### **CI/CD**
+- GitHub Actions:
+  - Installs dependencies
+  - Runs tests
+  - Builds Docker image
+
+### **Cloud Deployment (AWS)**
+- Image pushed to **Amazon ECR**
+- Running on **AWS ECS Fargate**
+- Public endpoint exposes model API
+
+---
+
+# High-Level Architecture Diagram
+
+```mermaid
+flowchart LR
+    subgraph Local_Training
+        Cfg[configs/config.yaml] --> Train[src.ml_pipeline.train]
+        Train --> Model[models/model.joblib]
+        Train --> Logs[logs/training.log<br/>logs/metrics.json]
+        Train --> MLflow[MLflow tracking (mlruns/)]
+    end
+
+    Model --> API[src.api.app (FastAPI)]
+    API --> Docker[Docker image<br/>mlops-project-api]
+
+    Docker --> ECR[(Amazon ECR)]
+    ECR --> ECS[ECS Fargate Service]
+    ECS --> User[Public client<br/>(/health, /predict)]
+```
+
+---
+
+# AWS Deployment (ECR + ECS Fargate)
+
+This section explains how the Dockerized API is deployed to AWS.
+
+---
+
+## Build **amd64 Docker image** (required for ECS Fargate)
+
+```bash
+docker buildx build \
+  --platform linux/amd64 \
+  -t mlops-project-api \
+  . \
+  --load
+```
+
+---
+
+## Push image to Amazon ECR
+
+```bash
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
+aws ecr create-repository \
+  --repository-name mlops-project-1-api \
+  --region us-east-1 || true
+
+aws ecr get-login-password --region us-east-1 | \
+  docker login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com
+
+docker tag mlops-project-api:latest \
+  ${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/mlops-project-1-api:latest
+
+docker push ${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/mlops-project-1-api:latest
+```
+
+---
+
+## Deploy on ECS Fargate
+
+### **ECS Console Steps**
+
+1. Create cluster → **Networking only (Fargate)**  
+2. Create task definition:
+   - Launch type: **Fargate**
+   - Container:
+     - Image URI from ECR
+     - Port: **8000**
+3. Create service:
+   - Public IP: **ENABLED**
+   - Security group: allow **TCP 8000** inbound
+   - Desired tasks: **1**
+
+---
+
+## Test AWS Deployment
+
+```bash
+curl http://PUBLIC_IP:8000/health
+```
+
+```bash
+curl -X POST "http://PUBLIC_IP:8000/predict" \
+  -H "Content-Type: application/json" \
+  -d '{"features":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}'
+```
+
+---
+
+# What I Learned / Skills Demonstrated
+
+### **ML Engineering**
+- Modular ML pipeline design  
+- Reproducible training via YAML configuration  
+
+### **Experiment Tracking**
+- Logged params/metrics with MLflow  
+- Compared runs in MLflow UI  
+
+### **Software Engineering**
+- FastAPI inference API  
+- Script-based inference  
+- Lazy-loading model pattern  
+
+### **Testing & CI**
+- Pytest suite for API + pipeline  
+- GitHub Actions CI (tests + Docker build)  
+
+### **DevOps / Cloud Engineering**
+- Dockerized ML API  
+- Built multi-architecture Docker images  
+- Stored images in Amazon ECR  
+- Deployed container to AWS ECS Fargate  
+- Verified public model endpoint  
+
+### **End-to-End MLOps Pipeline**
+**Train → Track → Package → Test → Containerize → Deploy → Serve**
+
+---
+
+# Project Status
+
+✔️ End-to-end ML pipeline working  
+✔️ Dockerized FastAPI model API  
+✔️ CI pipeline  
+✔️ Model deployed to AWS ECS  
+✔️ Documentation complete  
+
+---
+
+# Acknowledgements
+
+Built as part of a structured MLOps training program.
