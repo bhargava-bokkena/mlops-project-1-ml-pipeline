@@ -6,6 +6,8 @@ from datetime import datetime
 import joblib
 import yaml
 from sklearn.metrics import accuracy_score
+import mlflow
+import mlflow.sklearn
 
 from .data import get_data, split_data
 from .pipeline import build_pipeline
@@ -62,6 +64,21 @@ def main():
     config = load_config()
     logger.info("Loaded config: %s", config)
 
+    # Extract config values
+    test_size = config["data"]["test_size"]
+    random_state = config["data"]["random_state"]
+    max_iter = config["model"]["max_iter"]
+
+    # Set MLflow experiment name (local tracking)
+    mlflow.set_experiment(config.get("experiment_name", "dev_run_01"))
+
+    with mlflow.start_run(run_name="train_logreg_pipeline"):
+        # Log parameters to MLflow
+        mlflow.log_param("test_size", test_size)
+        mlflow.log_param("random_state", random_state)
+        mlflow.log_param("max_iter", max_iter)
+        mlflow.log_param("model_type", "logistic_regression")
+
     # 1. Load data
     X, y = get_data()
     logger.info("Loaded data with %d samples.", len(y))
@@ -92,7 +109,12 @@ def main():
     acc = accuracy_score(y_test, y_pred)
     logger.info("Test accuracy: %.4f", acc)
 
-    # 6. Prepare and save metrics
+    # Log metrics to MLflow
+    mlflow.log_metric("accuracy", acc)
+    mlflow.log_metric("n_train", len(y_train))
+    mlflow.log_metric("n_test", len(y_test))
+
+    # 6. Prepare and save metrics locally
     metrics = {
         "timestamp": datetime.utcnow().isoformat() + "Z",
         "accuracy": acc,
@@ -109,13 +131,16 @@ def main():
     metrics_path = save_metrics(metrics)
     logger.info("Saved metrics to %s", metrics_path.resolve())
 
-    # 7. Save model artifact
+    # 7. Save model artifact locally
     models_dir = Path("models")
     models_dir.mkdir(parents=True, exist_ok=True)
 
     model_path = models_dir / "model.joblib"
     joblib.dump(pipeline, model_path)
     logger.info("Saved trained model to: %s", model_path.resolve())
+
+    # Also log the model artifact to MLflow
+    mlflow.sklearn.log_model(pipeline, artifact_path="model")
 
     # Still print accuracy for human convenience
     print(f"Test accuracy: {acc:.4f}")
